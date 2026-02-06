@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>慢递 - 见字如面</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <style>
+        :root { --theme: #7a6e5d; --bg: #f8f5f0; }
+        body { margin: 0; background: var(--bg); font-family: "PingFang SC", "Microsoft YaHei", serif; color: #444; }
+        #app { max-width: 500px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+        
+        /* 顶部导航 */
+        .nav { display: flex; justify-content: space-around; padding: 20px 0; background: #fff; border-bottom: 1px solid #eee; }
+        .nav-item { cursor: pointer; color: #999; padding-bottom: 5px; }
+        .nav-item.active { color: var(--theme); border-bottom: 2px solid var(--theme); font-weight: bold; }
+
+        /* 内容区 */
+        .content { flex: 1; padding: 20px; }
+        
+        /* 写信页 */
+        .editor-card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        textarea { width: 100%; height: 200px; border: none; outline: none; font-size: 16px; line-height: 1.6; resize: none; background: url('https://lucide.dev/api/patterns/lines') repeat; }
+        .timer-select { margin-top: 20px; border-top: 1px dashed #ddd; padding-top: 15px; }
+        button { width: 100%; background: var(--theme); color: white; border: none; padding: 12px; border-radius: 25px; font-size: 16px; margin-top: 20px; }
+
+        /* 信箱页 */
+        .letter-item { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid var(--theme); }
+        .status-tag { font-size: 12px; color: #999; background: #eee; padding: 2px 8px; border-radius: 10px; }
+        .arrival-content { font-style: italic; color: #222; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="nav">
+        <div class="nav-item" :class="{active: tab==='write'}" @click="tab='write'">寄信</div>
+        <div class="nav-item" :class="{active: tab==='box'}" @click="tab='box'">信箱 ({{letters.length}})</div>
+    </div>
+
+    <div class="content">
+        <div v-if="tab==='write'" class="editor-card">
+            <textarea v-model="newMsg" placeholder="此时此刻，想对他说些什么..."></textarea>
+            <div class="timer-select">
+                <span>设定寄达时间：</span>
+                <select v-model="delay">
+                    <option value="10000">10秒 (测试)</option>
+                    <option value="60000">1分钟</option>
+                    <option value="3600000">1小时</option>
+                    <option value="86400000">24小时</option>
+                </select>
+            </div>
+            <button @click="sendLetter">密封并投递</button>
+        </div>
+
+        <div v-if="tab==='box'">
+            <div v-if="letters.length === 0" style="text-align: center; color: #ccc; margin-top: 50px;">暂无往来信件</div>
+            <div v-for="(l, index) in letters" :key="index" class="letter-item">
+                <div>
+                    <span class="status-tag">{{ getStatus(l) }}</span>
+                    <small style="float:right; color:#999">{{ formatTime(l.sendAt) }}</small>
+                </div>
+                <div v-if="isArrived(l)" class="arrival-content">{{ l.content }}</div>
+                <div v-else style="color:#999; margin-top:10px; font-size:14px;">
+                    邮差正在路途中... 预计 {{ formatTime(l.arriveAt) }} 送达
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            const tab = ref('write');
+            const newMsg = ref('');
+            const delay = ref('10000');
+            const letters = ref(JSON.parse(localStorage.getItem('my_letters') || '[]'));
+
+            const sendLetter = () => {
+                if(!newMsg.value) return alert("信纸还是空的");
+                const letter = {
+                    content: newMsg.value,
+                    sendAt: Date.now(),
+                    arriveAt: Date.now() + parseInt(delay.value)
+                };
+                letters.value.unshift(letter);
+                localStorage.setItem('my_letters', JSON.stringify(letters.value));
+                newMsg.value = '';
+                tab.value = 'box';
+            };
+
+            const isArrived = (l) => Date.now() >= l.arriveAt;
+            const getStatus = (l) => isArrived(l) ? '✅ 已送达' : '🚚 配送中';
+            const formatTime = (ts) => new Date(ts).toLocaleString();
+
+            // 每秒刷新一次状态
+            onMounted(() => {
+                setInterval(() => {}, 1000); 
+            });
+
+            return { tab, newMsg, delay, letters, sendLetter, isArrived, getStatus, formatTime };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>
