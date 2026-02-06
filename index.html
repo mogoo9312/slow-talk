@@ -5,64 +5,85 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>慢递 - 见字如面</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --theme: #7a6e5d; --bg: #f8f5f0; }
-        body { margin: 0; background: var(--bg); font-family: "PingFang SC", "Microsoft YaHei", serif; color: #444; }
-        #app { max-width: 500px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+        :root { --theme: #7a6e5d; --bg: #fdfaf5; }
+        body { margin: 0; background: var(--bg); font-family: "PingFang SC", "STKaiti", serif; color: #444; }
+        #app { max-width: 500px; margin: 0 auto; min-height: 100vh; background: #fff; display: flex; flex-direction: column; box-shadow: 0 0 15px rgba(0,0,0,0.05); }
         
-        /* 顶部导航 */
-        .nav { display: flex; justify-content: space-around; padding: 20px 0; background: #fff; border-bottom: 1px solid #eee; }
-        .nav-item { cursor: pointer; color: #999; padding-bottom: 5px; }
-        .nav-item.active { color: var(--theme); border-bottom: 2px solid var(--theme); font-weight: bold; }
+        /* 顶部状态栏 */
+        .status-bar { padding: 15px; background: #f8f5f0; border-bottom: 1px solid #eee; font-size: 14px; color: #666; }
+        .id-input { width: 60px; border: none; background: #fff; border-bottom: 1px solid var(--theme); text-align: center; font-weight: bold; color: var(--theme); outline: none; }
+        
+        /* 导航 */
+        .nav { display: flex; border-bottom: 1px solid #eee; }
+        .nav-item { flex: 1; text-align: center; padding: 15px; cursor: pointer; color: #999; }
+        .nav-item.active { color: var(--theme); font-weight: bold; border-bottom: 2px solid var(--theme); }
 
-        /* 内容区 */
         .content { flex: 1; padding: 20px; }
         
-        /* 写信页 */
-        .editor-card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        textarea { width: 100%; height: 200px; border: none; outline: none; font-size: 16px; line-height: 1.6; resize: none; background: url('https://lucide.dev/api/patterns/lines') repeat; }
-        .timer-select { margin-top: 20px; border-top: 1px dashed #ddd; padding-top: 15px; }
-        button { width: 100%; background: var(--theme); color: white; border: none; padding: 12px; border-radius: 25px; font-size: 16px; margin-top: 20px; }
+        /* 写信 */
+        .write-box textarea { width: 100%; height: 200px; border: 1px solid #eee; padding: 15px; box-sizing: border-box; font-size: 16px; border-radius: 8px; resize: none; background: #fcfcfc; }
+        .input-row { margin: 15px 0; font-size: 14px; }
+        .target-input { border: 1px solid #ddd; padding: 5px 10px; border-radius: 4px; width: 80px; outline: none; }
+        
+        /* 按钮 */
+        .btn { width: 100%; background: var(--theme); color: white; border: none; padding: 15px; border-radius: 30px; font-size: 16px; cursor: pointer; margin-top: 10px; transition: 0.3s; }
+        .btn:active { opacity: 0.8; transform: scale(0.98); }
 
-        /* 信箱页 */
-        .letter-item { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid var(--theme); }
-        .status-tag { font-size: 12px; color: #999; background: #eee; padding: 2px 8px; border-radius: 10px; }
-        .arrival-content { font-style: italic; color: #222; margin-top: 10px; }
+        /* 信件列表 */
+        .letter-card { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 20px; margin-bottom: 15px; }
+        .tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #f0f0f0; color: #999; margin-bottom: 10px; display: inline-block; }
+        .tag.arrived { background: #e8f5e9; color: #4caf50; }
+        .letter-body { line-height: 1.6; white-space: pre-wrap; }
+        .empty { text-align: center; color: #ccc; margin-top: 50px; }
     </style>
 </head>
 <body>
 
 <div id="app">
+    <div class="status-bar">
+        我的邮编：<input type="text" v-model="myId" @change="saveMyId" class="id-input">
+        <span style="font-size: 11px; margin-left: 10px; color: #999;">(点击可修改)</span>
+    </div>
+
     <div class="nav">
         <div class="nav-item" :class="{active: tab==='write'}" @click="tab='write'">寄信</div>
-        <div class="nav-item" :class="{active: tab==='box'}" @click="tab='box'">信箱 ({{letters.length}})</div>
+        <div class="nav-item" :class="{active: tab==='box'}" @click="tab='box'">信箱</div>
     </div>
 
     <div class="content">
-        <div v-if="tab==='write'" class="editor-card">
-            <textarea v-model="newMsg" placeholder="此时此刻，想对他说些什么..."></textarea>
-            <div class="timer-select">
-                <span>设定寄达时间：</span>
+        <div v-if="tab==='write'" class="write-box">
+            <div class="input-row">
+                寄往邮编：<input type="text" v-model="targetId" placeholder="对方邮编" class="target-input">
+            </div>
+            <textarea v-model="msg" placeholder="慢下来，写一封深思熟虑的信..."></textarea>
+            <div class="input-row">
+                设定寄达：
                 <select v-model="delay">
-                    <option value="10000">10秒 (测试)</option>
-                    <option value="60000">1分钟</option>
+                    <option value="60000">1分钟 (测试用)</option>
                     <option value="3600000">1小时</option>
                     <option value="86400000">24小时</option>
+                    <option value="259200000">3天</option>
                 </select>
             </div>
-            <button @click="sendLetter">密封并投递</button>
+            <button class="btn" @click="sendLetter">密封寄出</button>
         </div>
 
         <div v-if="tab==='box'">
-            <div v-if="letters.length === 0" style="text-align: center; color: #ccc; margin-top: 50px;">暂无往来信件</div>
-            <div v-for="(l, index) in letters" :key="index" class="letter-item">
-                <div>
-                    <span class="status-tag">{{ getStatus(l) }}</span>
-                    <small style="float:right; color:#999">{{ formatTime(l.sendAt) }}</small>
+            <button @click="fetchLetters" style="background: none; border: 1px solid #ccc; color: #999; padding: 5px 10px; border-radius: 4px; margin-bottom: 15px; font-size: 12px; cursor: pointer;">刷新信箱 ↻</button>
+            <div v-if="letters.length === 0" class="empty">云中谁寄锦书来？</div>
+            
+            <div v-for="l in letters" :key="l.id" class="letter-card">
+                <span class="tag" :class="{arrived: isArrived(l.deliver_at)}">
+                    {{ isArrived(l.deliver_at) ? '● 已送达' : '● 邮差赶路中' }}
+                </span>
+                <div v-if="isArrived(l.deliver_at)" class="letter-body">
+                    <small style="color: #999;">来自 {{l.sender_id}} 的信：</small><br>
+                    {{l.content}}
                 </div>
-                <div v-if="isArrived(l)" class="arrival-content">{{ l.content }}</div>
-                <div v-else style="color:#999; margin-top:10px; font-size:14px;">
-                    邮差正在路途中... 预计 {{ formatTime(l.arriveAt) }} 送达
+                <div v-else style="color: #999; font-size: 14px;">
+                    一封信正在路上，预计 {{ formatTime(l.deliver_at) }} 送达。
                 </div>
             </div>
         </div>
@@ -72,36 +93,63 @@
 <script>
     const { createApp, ref, onMounted } = Vue;
 
+    // --- 在这里填入你的 Supabase 信息 ---
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL'; 
+    const SUPABASE_KEY = 'YOUR_SUPABASE_KEY';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     createApp({
         setup() {
             const tab = ref('write');
-            const newMsg = ref('');
-            const delay = ref('10000');
-            const letters = ref(JSON.parse(localStorage.getItem('my_letters') || '[]'));
+            const myId = ref(localStorage.getItem('my_slow_id') || Math.floor(Math.random()*8999+1000).toString());
+            const targetId = ref('');
+            const msg = ref('');
+            const delay = ref('60000');
+            const letters = ref([]);
 
-            const sendLetter = () => {
-                if(!newMsg.value) return alert("信纸还是空的");
-                const letter = {
-                    content: newMsg.value,
-                    sendAt: Date.now(),
-                    arriveAt: Date.now() + parseInt(delay.value)
-                };
-                letters.value.unshift(letter);
-                localStorage.setItem('my_letters', JSON.stringify(letters.value));
-                newMsg.value = '';
-                tab.value = 'box';
+            const saveMyId = () => localStorage.setItem('my_slow_id', myId.value);
+
+            const sendLetter = async () => {
+                if(!targetId.value || !msg.value.trim()) return alert("请写明收件邮编和内容");
+                
+                const { error } = await supabaseClient.from('letters').insert([{
+                    content: msg.value,
+                    sender_id: myId.value,
+                    receiver_id: targetId.value,
+                    deliver_at: new Date(Date.now() + parseInt(delay.value)).toISOString()
+                }]);
+
+                if(error) {
+                    alert("投递失败，请检查数据库连接");
+                    console.error(error);
+                } else {
+                    alert("信件已交给邮差！");
+                    msg.value = '';
+                    tab.value = 'box';
+                    fetchLetters();
+                }
             };
 
-            const isArrived = (l) => Date.now() >= l.arriveAt;
-            const getStatus = (l) => isArrived(l) ? '✅ 已送达' : '🚚 配送中';
-            const formatTime = (ts) => new Date(ts).toLocaleString();
+            const fetchLetters = async () => {
+                const { data, error } = await supabaseClient.from('letters')
+                    .select('*')
+                    .eq('receiver_id', myId.value)
+                    .order('deliver_at', { ascending: false });
+                
+                if(!error) letters.value = data;
+            };
 
-            // 每秒刷新一次状态
+            const isArrived = (time) => new Date() > new Date(time);
+            const formatTime = (time) => new Date(time).toLocaleString();
+
             onMounted(() => {
-                setInterval(() => {}, 1000); 
+                saveMyId();
+                fetchLetters();
+                // 每10秒自动刷新状态
+                setInterval(fetchLetters, 10000);
             });
 
-            return { tab, newMsg, delay, letters, sendLetter, isArrived, getStatus, formatTime };
+            return { tab, myId, targetId, msg, delay, letters, saveMyId, sendLetter, fetchLetters, isArrived, formatTime };
         }
     }).mount('#app');
 </script>
