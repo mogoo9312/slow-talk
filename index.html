@@ -1,173 +1,97 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>慢邮 Slow Talk</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary-color: #333; --success-color: #2ed573; --error-color: #ff4757; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f9f9f9; padding: 20px; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; }
-        
-        /* 登录面板 */
-        .auth-card { 
-            background: white; border: 2px solid var(--primary-color); 
-            padding: 25px; border-radius: 12px; box-shadow: 6px 6px 0px #ddd;
-            margin-bottom: 20px;
-        }
-        input { 
-            display: block; width: 100%; padding: 12px; margin: 10px 0; 
-            border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; 
-        }
-        button { 
-            padding: 10px 20px; cursor: pointer; border: none; border-radius: 6px; 
-            font-weight: bold; transition: 0.2s;
-        }
-        .btn-main { background: var(--primary-color); color: white; width: 100%; margin-top: 10px; }
-        .btn-sub { background: #eee; color: #333; width: 100%; margin-top: 8px; }
-        .btn-logout { background: var(--error-color); color: white; margin-top: 15px; }
-
-        /* 功能区状态控制 */
-        #user-info { display: none; text-align: center; }
-        #main-content { opacity: 0.4; pointer-events: none; transition: 0.5s; }
-        .unlocked { opacity: 1 !important; pointer-events: auto !important; }
-        
-        .zip-box { background: #fffbe6; padding: 15px; border: 1px dashed #ffe58f; margin: 15px 0; border-radius: 8px; }
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
+        input { display: block; width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; cursor: pointer; background: #333; color: white; border: none; border-radius: 4px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="auth-card" id="auth-section">
-        <div id="login-form">
-            <h2 style="margin-top:0;">📬 慢邮私人信箱</h2>
-            <p style="color: #666; font-size: 0.9em;">输入邮箱和密码开始航行</p>
-            <input type="email" id="auth-email" placeholder="邮箱地址">
-            <input type="password" id="auth-password" placeholder="密码 (至少6位)">
-            <button class="btn-main" onclick="handleLogin()">立即登录</button>
-            <button class="btn-sub" onclick="handleSignUp()">新用户注册</button>
-        </div>
-        
-        <div id="user-info">
-            <h2 style="margin-top:0;">✨ 欢迎回来</h2>
-            <p id="auth-status" style="font-weight:bold; color:var(--success-color);"></p>
-            
-            <div id="zip-section" class="zip-box">
-                </div>
-
-            <button class="btn-logout" onclick="handleLogout()">安全退出账号</button>
-        </div>
+<div class="card">
+    <div id="auth-ui">
+        <h2>📬 登录/注册</h2>
+        <input type="email" id="email" placeholder="邮箱">
+        <input type="password" id="password" placeholder="密码">
+        <button onclick="doSignUp()" style="background:#eee; color:#333; margin-bottom:10px;">注册新账号</button>
+        <button onclick="doLogin()">立即登录</button>
     </div>
 
-    <div id="main-content" class="auth-card">
-        <h3>📩 寄往未来的信</h3>
-        <p>你需要先设置专属邮编，才能解锁寄信功能。</p>
-        </div>
+    <div id="user-ui" class="hidden">
+        <h2 id="welcome-msg">✨ 欢迎</h2>
+        <div id="zip-area" style="background:#fffbe6; padding:15px; border:1px solid #ffe58f; margin-bottom:10px;">
+            </div>
+        <button onclick="doLogout()" style="background:#ff4757;">退出登录</button>
+    </div>
 </div>
 
 <script>
-    // ======= ⚠️ 唯一配置区：请填入你的信息 =======
-    const SUPABASE_URL = 'https://https://ojwcwpfcewttukmuvuuk.supabase.co'; 
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI'; 
-    // ==========================================
+    // --- 1. 配置 (全局唯一) ---
+    const URL = 'https://ojwcwpfcewttukmuvuuk.supabase.co';
+    const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI';
+    
+    // --- 2. 初始化 (确保整个文件只有这一处) ---
+    const supabase = window.supabase.createClient(URL, KEY);
 
-    // 1. 初始化（全局只定义这一个 supabase 实例）
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    // 2. 注册逻辑
-    async function handleSignUp() {
-        const email = document.getElementById('auth-email').value;
-        const password = document.getElementById('auth-password').value;
-        if (!email || !password) return alert("请填写完整");
-
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) alert("注册失败: " + error.message);
-        else alert("注册成功！如果你关闭了验证，现在可以直接登录。");
+    // --- 3. 核心功能 ---
+    async function doSignUp() {
+        const e = document.getElementById('email').value;
+        const p = document.getElementById('password').value;
+        const { error } = await supabase.auth.signUp({ email: e, password: p });
+        if (error) alert(error.message); else alert("注册成功，请尝试登录");
     }
 
-    // 3. 登录逻辑
-    async function handleLogin() {
-        const email = document.getElementById('auth-email').value;
-        const password = document.getElementById('auth-password').value;
-        if (!email || !password) return alert("请输入账号");
-
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) alert("登录错误: " + error.message);
-        else {
-            console.log("登录成功");
-            checkUser(); 
-        }
+    async function doLogin() {
+        const e = document.getElementById('email').value;
+        const p = document.getElementById('password').value;
+        const { error } = await supabase.auth.signInWithPassword({ email: e, password: p });
+        if (error) alert(error.message); else checkUser();
     }
 
-    // 4. 退出逻辑
-    async function handleLogout() {
+    async function doLogout() {
         await supabase.auth.signOut();
-        window.location.reload();
+        location.reload();
     }
 
-    // 5. 保存邮编逻辑
-    async function saveZipCode(userId) {
-        const zip = document.getElementById('new-zip').value;
-        if (!zip) return alert("请填入数字邮编");
-
-        const { error } = await supabase
-            .from('profiles')
-            .insert([{ id: userId, zip_code: zip }]);
-
-        if (error) {
-            if (error.message.includes("unique")) alert("该邮编已被占用，请换一个");
-            else alert("保存失败: " + error.message);
-        } else {
-            alert("邮编绑定成功！");
-            checkUser();
-        }
+    async function saveZip(uid) {
+        const z = document.getElementById('zip-input').value;
+        const { error } = await supabase.from('profiles').insert([{ id: uid, zip_code: z }]);
+        if (error) alert("该邮编已被占用或保存失败"); else checkUser();
     }
 
-    // 6. 核心：检查状态并刷新界面
     async function checkUser() {
         const { data: { user } } = await supabase.auth.getUser();
-        
-        const loginForm = document.getElementById('login-form');
-        const userInfo = document.getElementById('user-info');
-        const statusText = document.getElementById('auth-status');
-        const mainContent = document.getElementById('main-content');
-        const zipSection = document.getElementById('zip-section');
+        const authUI = document.getElementById('auth-ui');
+        const userUI = document.getElementById('user-ui');
+        const zipArea = document.getElementById('zip-area');
 
         if (user) {
-            // 切换显示状态
-            loginForm.style.display = "none";
-            userInfo.style.display = "block";
-            statusText.innerText = "账号: " + user.email;
+            authUI.classList.add('hidden');
+            userUI.classList.remove('hidden');
+            document.getElementById('welcome-msg').innerText = "账号：" + user.email;
 
-            // 查询该用户的邮编 (从 profiles 表)
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('zip_code')
-                .eq('id', user.id)
-                .single();
-
-            if (profile && profile.zip_code) {
-                zipSection.innerHTML = `我的专属邮编：<strong>${profile.zip_code}</strong>`;
-                mainContent.classList.add('unlocked');
-                mainContent.innerHTML = `<h3>✅ 功能已解锁</h3><p>你的邮编 ${profile.zip_code} 已生效，现在可以寄信了。</p>`;
+            // 查邮编
+            const { data: profile } = await supabase.from('profiles').select('zip_code').eq('id', user.id).single();
+            if (profile) {
+                zipArea.innerHTML = "我的专属邮编：<strong>" + profile.zip_code + "</strong>";
             } else {
-                zipSection.innerHTML = `
-                    <p style="margin:0 0 10px 0; color:#856404;">⚠️ 请先绑定一个永久邮编：</p>
-                    <input type="text" id="new-zip" placeholder="例如: 888999" style="margin:0; display:inline-block; width:60%;">
-                    <button onclick="saveZipCode('${user.id}')" style="background:#333; color:white;">确认</button>
+                zipArea.innerHTML = `
+                    <p>绑定一个永久邮编：</p>
+                    <input type="text" id="zip-input" placeholder="如: 666888">
+                    <button onclick="saveZip('${user.id}')">确认绑定</button>
                 `;
             }
-        } else {
-            loginForm.style.display = "block";
-            userInfo.style.display = "none";
-            mainContent.classList.remove('unlocked');
         }
     }
 
-    // 页面启动加载
-    window.onload = checkUser;
+    // 自动运行
+    checkUser();
 </script>
-
 </body>
 </html>
