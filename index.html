@@ -63,92 +63,71 @@
             <button class="btn-logout" onclick="handleLogout()">安全退出</button>
         </div>
     </div>
-
-    <div id="main-content" style="opacity: 0.3; pointer-events: none;">
-        <p style="text-align: center; color: #999;">请先登录以解锁完整功能</p>
-        </div>
-</div>
-
 <script>
-    // ======= 配置区：请在此处填入你的 Supabase 信息 =======
-    const supabaseUrl = 'https://ojwcwpfcewttukmuvuuk.supabase.co'; 
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI'; 
-    // ===================================================
-
-    // 初始化 Supabase
+    // 1. 声明变量（只写这一次！）
+    const supabaseUrl = 'https://你的项目ID.supabase.co'; 
+    const supabaseKey = '你的匿名Key';
+    
+    // 注意：这里我们直接创建，不要重复声明
     const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-    // 1. 注册功能
+    // 2. 注册函数
     async function handleSignUp() {
+        console.log("正在尝试注册...");
         const email = document.getElementById('auth-email').value;
         const password = document.getElementById('auth-password').value;
-        if (!email || !password) return alert("请填写完整信息");
-
         const { data, error } = await supabase.auth.signUp({ email, password });
-        
-        if (error) {
-            alert("注册出错: " + error.message);
-        } else {
-            alert("注册成功！若已关闭邮箱验证，可直接点击登录。");
-        }
+        if (error) alert("注册错误: " + error.message);
+        else alert("注册成功！");
     }
 
-    // 2. 登录功能
+    // 3. 登录函数
     async function handleLogin() {
+        console.log("正在尝试登录...");
         const email = document.getElementById('auth-email').value;
         const password = document.getElementById('auth-password').value;
-        if (!email || !password) return alert("请输入账号密码");
-
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        
-        if (error) {
-            alert("登录失败: " + error.message);
-        } else {
-            alert("登录成功，欢迎回来！");
-            checkUser(); 
+        if (error) alert("登录失败: " + error.message);
+        else {
+            alert("登录成功！");
+            checkUser();
         }
     }
 
-    // 3. 退出登录
+    // 4. 退出函数
     async function handleLogout() {
-        const { error } = await supabase.auth.signOut();
-        if (!error) {
-            alert("已退出登录");
-            location.reload(); 
-        }
+        await supabase.auth.signOut();
+        location.reload();
     }
 
-    // 4. 检查用户状态并控制界面显示
+    // 5. 检查用户状态
     async function checkUser() {
         const { data: { user } } = await supabase.auth.getUser();
-        
         const loginForm = document.getElementById('login-form');
         const userInfo = document.getElementById('user-info');
         const statusText = document.getElementById('auth-status');
         const mainContent = document.getElementById('main-content');
 
         if (user) {
-            // 已登录逻辑
-            loginForm.style.display = "none";
-            userInfo.style.display = "block";
-            statusText.innerText = "当前账号：" + user.email;
-            
-            // 解锁下方功能区
-            mainContent.style.opacity = "1";
-            mainContent.style.pointerEvents = "auto";
-            mainContent.innerHTML = "<h3>✅ 你的功能已解锁</h3><p>现在你可以开始寄信了！你的用户ID是: " + user.id + "</p>";
-        } else {
-            // 未登录逻辑
-            loginForm.style.display = "block";
-            userInfo.style.display = "none";
-            mainContent.style.opacity = "0.3";
-            mainContent.style.pointerEvents = "none";
+            if(loginForm) loginForm.style.display = "none";
+            if(userInfo) userInfo.style.display = "block";
+            if(statusText) statusText.innerText = "当前账号：" + user.email;
+            if(mainContent) {
+                mainContent.style.opacity = "1";
+                mainContent.style.pointerEvents = "auto";
+            }
         }
     }
 
-    // 页面加载时自动运行
-    document.addEventListener('DOMContentLoaded', checkUser);
+    // 6. 页面加载完成后启动
+    window.onload = checkUser;
 </script>
+    <div id="main-content" style="opacity: 0.3; pointer-events: none;">
+        <p style="text-align: center; color: #999;">请先登录以解锁完整功能</p>
+        </div>
+</div>
+
 
 </body>
 </html>
+
