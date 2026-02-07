@@ -7,11 +7,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --main: #222; --gap: 20px; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: var(--gap); margin: 0; }
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: var(--gap); margin: 0; }
         .card { background: white; padding: 30px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); width: 100%; max-width: 400px; text-align: center; }
         h2 { margin-bottom: 10px; font-weight: 700; }
         p.tip { color: #666; font-size: 14px; margin-bottom: 25px; }
         input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        textarea { width: 100%; height: 100px; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 14px; resize: none; }
+        label { display: block; text-align: left; font-size: 12px; color: #666; margin-top: 10px; font-weight: bold; }
         button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn-black { background: var(--main); color: white; }
         .btn-gray { background: #eee; color: #333; }
@@ -25,7 +27,7 @@
 <div class="card">
     <div id="ui-unauth">
         <h2>📬 慢邮 Slow Talk</h2>
-        <p class="tip">给自己或好友寄一封未来的信</p >
+        <p class="tip">给自己或好友寄一封未来的信</p>
         <input type="email" id="email" placeholder="邮箱地址">
         <input type="password" id="password" placeholder="密码 (至少6位)">
         <button class="btn-black" onclick="actLogin()">登录</button>
@@ -34,100 +36,104 @@
 
     <div id="ui-auth" class="hidden">
         <h2>✨ 欢迎回来</h2>
-        <p id="user-info" style="font-size: 14px; color: #888;"></p >
-        
+        <p id="user-info" style="font-size: 14px; color: #888;"></p>
         <div id="zip-section">
-            <p>读取邮编中...</p >
+             <p>数据加载中...</p>
         </div>
-
-        <button class="btn-red" onclick="actLogout()">退出登录</button>
+        <button class="btn-red" onclick="actLogout()" style="margin-top: 30px;">退出登录</button>
     </div>
 </div>
 
 <script>
-    /**
-     * ⚠️ 请务必在此填写你的真实 ID 和 Key
-     */
-    const _ST_URL = 'https://ojwcwpfcewttukmuvuuk.supabase.co'; 
-    const _ST_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI'; 
+// --- 1. 基础配置 (请填写此处) ---
+const _ST_URL = 'https://ojwcwpfcewttukmuvuuk.supabase.co'; 
+const _ST_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI'; 
 
-    // 初始化 Supabase 客户端
-    const _ST_CLIENT = supabase.createClient(_ST_URL, _ST_KEY);
+const _ST_CLIENT = supabase.createClient(_ST_URL, _ST_KEY);
 
-    // --- 功能：注册 ---
-    async function actSignUp() {
-        const e = document.getElementById('email').value;
-        const p = document.getElementById('password').value;
-        if (!e || p.length < 6) return alert("请正确输入邮箱和至少6位密码");
+// --- 2. 注册功能 ---
+async function actSignUp() {
+    const e = document.getElementById('email').value;
+    const p = document.getElementById('password').value;
+    if (!e || p.length < 6) return alert("请正确输入邮箱和至少6位密码");
+    const { error } = await _ST_CLIENT.auth.signUp({ email: e, password: p });
+    if (error) alert("注册失败: " + error.message);
+    else alert("注册发起成功！请尝试直接登录。");
+}
 
-        const { error } = await _ST_CLIENT.auth.signUp({ email: e, password: p });
-        if (error) alert("注册失败: " + error.message);
-        else alert("注册发起成功！请尝试直接登录（若后台已关验证）。");
+// --- 3. 登录功能 ---
+async function actLogin() {
+    const e = document.getElementById('email').value;
+    const p = document.getElementById('password').value;
+    const { error } = await _ST_CLIENT.auth.signInWithPassword({ email: e, password: p });
+    if (error) alert("登录失败: " + error.message);
+    else runAuthCheck();
+}
+
+// --- 4. 退出功能 ---
+async function actLogout() {
+    await _ST_CLIENT.auth.signOut();
+    location.reload();
+}
+
+// --- 5. 绑定邮编功能 ---
+async function actBindZip(uid) {
+    const z = document.getElementById('new-zip').value;
+    if (!z) return alert("请输入邮编");
+    const { error } = await _ST_CLIENT.from('profiles').insert([{ id: uid, zip_code: z }]);
+    if (error) alert("绑定失败：邮编可能已被占用");
+    else runAuthCheck();
+}
+
+// --- 6. 寄信功能 ---
+async function actSendLetter(uid) {
+    const content = document.getElementById('letter-content').value;
+    const target = document.getElementById('target-zip').value;
+    if(!content || !target) return alert("内容或目标邮编不能为空");
+    const { error } = await _ST_CLIENT.from('letters').insert([{ sender_id: uid, content: content, target_zip: target }]);
+    if (error) alert("寄信失败: " + error.message);
+    else {
+        alert("🚀 信件已成功投递！");
+        document.getElementById('letter-content').value = ''; 
     }
+}
 
-    // --- 功能：登录 ---
-    async function actLogin() {
-        const e = document.getElementById('email').value;
-        const p = document.getElementById('password').value;
-        
-        const { error } = await _ST_CLIENT.auth.signInWithPassword({ email: e, password: p });
-        if (error) alert("登录失败: " + error.message);
-        else runAuthCheck();
-    }
+// --- 7. UI核心刷新逻辑 ---
+async function runAuthCheck() {
+    const { data: { user } } = await _ST_CLIENT.auth.getUser();
+    const domUnauth = document.getElementById('ui-unauth');
+    const domAuth = document.getElementById('ui-auth');
+    const domZip = document.getElementById('zip-section');
 
-    // --- 功能：退出 ---
-    async function actLogout() {
-        await _ST_CLIENT.auth.signOut();
-        location.reload();
-    }
+    if (user) {
+        domUnauth.classList.add('hidden');
+        domAuth.classList.remove('hidden');
+        document.getElementById('user-info').innerText = "当前账号: " + user.email;
 
-    // --- 功能：绑定邮编 ---
-    async function actBindZip(uid) {
-        const z = document.getElementById('new-zip').value;
-        if (!z) return alert("请输入邮编");
+        const { data: profile } = await _ST_CLIENT.from('profiles').select('zip_code').eq('id', user.id).single();
 
-        const { error } = await _ST_CLIENT.from('profiles').insert([{ id: uid, zip_code: z }]);
-        if (error) alert("绑定失败（邮编可能已被占用）");
-        else runAuthCheck();
-    }
-
-    // --- 核心逻辑：检查用户状态并刷新UI ---
-    async function runAuthCheck() {
-        const { data: { user } } = await _ST_CLIENT.auth.getUser();
-        
-        const domUnauth = document.getElementById('ui-unauth');
-        const domAuth = document.getElementById('ui-auth');
-        const domZip = document.getElementById('zip-section');
-
-        if (user) {
-            domUnauth.classList.add('hidden');
-            domAuth.classList.remove('hidden');
-            document.getElementById('user-info').innerText = "当前账号: " + user.email;
-
-            // 从数据库 profiles 表获取邮编
-            try {
-                const { data: profile, error } = await _ST_CLIENT
-                    .from('profiles')
-                    .select('zip_code')
-                    .eq('id', user.id)
-                    .single();
-
-                if (profile && profile.zip_code) {
-                    domZip.innerHTML = `<div class="zip-display">${profile.zip_code}</div><p style="font-size:12px;color:#999">您的专属邮编</p >`;
-                } else {
-                    domZip.innerHTML = `
-                        <input type="text" id="new-zip" placeholder="请设置邮编 (如 666888)">
-                        <button class="btn-black" onclick="actBindZip('${user.id}')">确认绑定</button>
-                    `;
-                }
-            } catch (err) {
-                domZip.innerHTML = "<p style='color:red'>数据库连接失败，请检查 profiles 表是否创建</p >";
-            }
+        if (profile && profile.zip_code) {
+            domZip.innerHTML = `
+                <div class="zip-display">${profile.zip_code}</div>
+                <div style="text-align:left; border-top:1px solid #eee; padding-top:15px; margin-top:15px;">
+                    <label>寄往对方邮编：</label>
+                    <input type="text" id="target-zip" placeholder="收件人的数字邮编">
+                    <label>信件内容：</label>
+                    <textarea id="letter-content" placeholder="写下你想说的话..."></textarea>
+                    <button class="btn-black" onclick="actSendLetter('${user.id}')">立即寄出</button>
+                </div>`;
+        } else {
+            domZip.innerHTML = `
+                <p style="font-size:14px; color:#666;">您还没有专属邮编，请设置一个</p>
+                <input type="text" id="new-zip" placeholder="例如: 123456">
+                <button class="btn-black" onclick="actBindZip('${user.id}')">确认绑定</button>`;
         }
+    } else {
+        domUnauth.classList.remove('hidden');
+        domAuth.classList.add('hidden');
     }
-
-    // 页面加载完成执行一次检查
-    window.onload = runAuthCheck;
+}
+window.onload = runAuthCheck;
 </script>
 
 </body>
