@@ -39,6 +39,8 @@
         .empty { text-align: center; color: #ccc; margin-top: 50px; }
     </style>
 </head>
+
+<body>
 <div id="auth-section" style="border: 1px solid #ccc; padding: 20px; margin-bottom: 20px;">
     <h3>用户登录 / 注册</h3>
     <input type="email" id="auth-email" placeholder="邮箱地址">
@@ -48,8 +50,6 @@
     <button onclick="handleLogout()" id="logout-btn" style="display:none;">退出登录</button>
     <p id="auth-status">状态：未登录</p >
 </div>
-<body>
-
 <div id="app">
     <div class="status-bar">
         我的邮编：<input type="text" v-model="myId" @change="saveMyId" class="id-input">
@@ -106,6 +106,47 @@
     const SUPABASE_URL = 'https://ojwcwpfcewttukmuvuuk.supabase.co'; 
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // 1. 注册功能
+async function handleSignUp() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { data, error } = await _supabase.auth.signUp({ email, password });
+    
+    if (error) alert("注册失败: " + error.message);
+    else alert("注册成功！现在请点击登录。");
+}
+
+// 2. 登录功能
+async function handleLogin() {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+    
+    if (error) alert("登录失败: " + error.message);
+    else {
+        alert("登录成功！");
+        checkUser();
+    }
+}
+
+// 3. 检查当前有没有人登录
+async function checkUser() {
+    const { data: { user } } = await _supabase.auth.getUser();
+    const status = document.getElementById('auth-status');
+    const logoutBtn = document.getElementById('logout-btn');
+    
+    if (user) {
+        status.innerText = "当前登录：" + user.email;
+        logoutBtn.style.display = "inline";
+        // 登录后，你可以记录这个 user.id，用来绑定他以后的邮编
+    } else {
+        status.innerText = "状态：未登录";
+        logoutBtn.style.display = "none";
+    }
+}
+
+// 页面加载时自动查一次状态
+checkUser();
 
     createApp({
         setup() {
@@ -165,6 +206,7 @@
 
 </body>
 </html>
+
 
 
 
