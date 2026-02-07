@@ -3,23 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>慢邮 Slow Talk - 寄往未来</title>
+    <title>慢邮 Slow Talk</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --bg: #fdfcf8; --accent: #4a4a4a; --card: #ffffff; }
-        body { font-family: "PingFang SC", "STHeiti", sans-serif; background: var(--bg); color: #333; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .card { background: var(--card); padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); width: 100%; max-width: 420px; text-align: center; border: 1px solid #eee; }
-        h2 { font-weight: 300; letter-spacing: 2px; margin-bottom: 5px; }
-        .sub-title { font-size: 12px; color: #999; margin-bottom: 30px; text-transform: uppercase; }
-        input, textarea { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #e0e0e0; border-radius: 8px; box-sizing: border-box; font-size: 15px; background: #fafafa; }
-        label { display: block; text-align: left; font-size: 13px; color: #666; margin-top: 10px; font-weight: bold; }
-        button { width: 100%; padding: 14px; margin-top: 15px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: 0.3s; }
+        :root { --bg: #fdfcf8; --accent: #4a4a4a; }
+        body { font-family: sans-serif; background: var(--bg); display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.05); width: 100%; max-width: 450px; text-align: center; }
+        input, textarea { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 14px; margin-top: 10px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; transition: 0.3s; }
         .btn-main { background: var(--accent); color: white; }
-        .btn-main:hover { opacity: 0.8; }
-        .btn-link { background: none; color: #888; text-decoration: underline; font-size: 13px; }
         .hidden { display: none !important; }
-        .zip-badge { background: #fffbe6; padding: 15px; border: 1px solid #ffe58f; border-radius: 12px; margin-bottom: 25px; }
-        .zip-num { font-size: 28px; font-weight: bold; color: #856404; display: block; }
+        .zip-badge { background: #fffbe6; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #ffe58f; }
+        /* 收件箱样式 */
+        .mailbox { margin-top: 30px; text-align: left; border-top: 2px solid #eee; padding-top: 20px; }
+        .letter-item { background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid var(--accent); }
+        .letter-meta { font-size: 11px; color: #999; margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -27,119 +25,98 @@
 <div class="card">
     <div id="auth-ui">
         <h2>Slow Talk</h2>
-        <div class="sub-title">慢邮 · 时间胶囊</div>
-        <input type="email" id="email" placeholder="电子邮箱">
-        <input type="password" id="password" placeholder="密码 (至少6位)">
+        <input type="email" id="email" placeholder="邮箱">
+        <input type="password" id="password" placeholder="密码">
         <button class="btn-main" onclick="handleAuth('login')">登录</button>
-        <button class="btn-link" onclick="handleAuth('signup')">还没有账号？点击注册</button>
+        <button onclick="handleAuth('signup')" style="background:none; color:#888;">注册账号</button>
     </div>
 
     <div id="main-ui" class="hidden">
-        <div id="user-info" style="font-size: 12px; color: #bbb; margin-bottom: 10px;"></div>
+        <div id="content-area"></div>
         
-        <div id="content-area">
-            <p>正在同步时光机数据...</p>
+        <div class="mailbox">
+            <h4 style="margin-bottom:15px;">📥 我的收件箱</h4>
+            <div id="letters-list">正在翻找信箱...</div>
         </div>
 
-        <button class="btn-link" onclick="logout()" style="margin-top: 40px;">退出账号</button>
+        <button onclick="logout()" style="margin-top:40px; background:none; color:red; font-size:12px;">退出登录</button>
     </div>
 </div>
 
 <script>
-    // --- ⚠️ 配置区 ---
     const DB_URL = 'https://ojwcwpfcewttukmuvuuk.supabase.co';
     const DB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI';
     const _sb = supabase.createClient(DB_URL, DB_KEY);
 
-    // --- 认证功能 ---
     async function handleAuth(type) {
         const e = document.getElementById('email').value;
         const p = document.getElementById('password').value;
-        if (p.length < 6) return alert("密码至少6位");
-
         const { error } = type === 'login' 
             ? await _sb.auth.signInWithPassword({ email: e, password: p })
             : await _sb.auth.signUp({ email: e, password: p });
-
-        if (error) alert("操作失败: " + error.message);
-        else if (type === 'signup') alert("注册发起成功！请尝试直接登录。");
-        else checkStatus();
+        if (error) alert(error.message); else checkStatus();
     }
 
     async function logout() { await _sb.auth.signOut(); location.reload(); }
 
-    // --- 核心业务：寄信 ---
+    // --- 核心：寄信 ---
     async function sendLetter(uid) {
         const content = document.getElementById('msg').value;
         const target = document.getElementById('to-zip').value;
         const time = document.getElementById('unlock').value;
+        if(!content || !target || !time) return alert("请填写完整");
 
-        if(!content || !target || !time) return alert("信息填写不完整");
-
-        const { error } = await _sb.from('letters').insert([
-            { sender_id: uid, content: content, target_zip: target, unlock_at: time }
-        ]);
-
-        if (error) alert("投递失败: " + error.message);
-        else {
-            alert("🚀 信件已投入时光机！");
-            document.getElementById('msg').value = '';
-        }
+        const { error } = await _sb.from('letters').insert([{ sender_id: uid, content, target_zip: target, unlock_at: time }]);
+        if (error) alert(error.message); else { alert("🚀 已寄出！"); location.reload(); }
     }
 
-    // --- 核心业务：绑定邮编 ---
+    // --- 核心：收信 ---
+    async function fetchLetters(zip) {
+        const listDiv = document.getElementById('letters-list');
+        // 数据库会自动根据我们设定的 RLS 策略过滤掉未到期的信
+        const { data, error } = await _sb.from('letters').select('*').eq('target_zip', zip).order('created_at', { ascending: false });
+
+        if (error) { listDiv.innerText = "读取失败"; return; }
+        if (data.length === 0) { listDiv.innerText = "信箱空空的，还没有已解锁的信。"; return; }
+
+        listDiv.innerHTML = data.map(l => `
+            <div class="letter-item">
+                <div class="letter-meta">来自时光机 · ${new Date(l.created_at).toLocaleDateString()}</div>
+                <div style="white-space: pre-wrap;">${l.content}</div>
+            </div>
+        `).join('');
+    }
+
     async function bindZip(uid) {
         const val = document.getElementById('my-zip').value;
-        if(!val) return alert("请输入邮编");
         const { error } = await _sb.from('profiles').insert([{ id: uid, zip_code: val }]);
-        if (error) alert("邮编已被占用或格式错误");
-        else checkStatus();
+        if (error) alert("绑定失败"); else checkStatus();
     }
 
-    // --- UI 渲染逻辑 ---
     async function checkStatus() {
         const { data: { user } } = await _sb.auth.getUser();
         if (!user) return;
-
         document.getElementById('auth-ui').classList.add('hidden');
         document.getElementById('main-ui').classList.remove('hidden');
-        document.getElementById('user-info').innerText = user.email;
 
-        // 获取个人资料
         const { data: profile } = await _sb.from('profiles').select('zip_code').eq('id', user.id).single();
         const area = document.getElementById('content-area');
 
         if (profile) {
-            // 已有邮编，显示发信界面
             area.innerHTML = `
-                <div class="zip-badge">
-                    <span style="font-size:12px; color:#b59527;">我的邮编</span>
-                    <span class="zip-num">${profile.zip_code}</span>
-                </div>
-                <div style="text-align:left; border-top:1px solid #f0f0f0; padding-top:20px;">
-                    <label>寄往对方邮编</label>
-                    <input type="text" id="to-zip" placeholder="目标邮编">
-                    
-                    <label>解锁日期 (在那之前信件不可见)</label>
+                <div class="zip-badge"><span style="font-size:12px;color:#999">我的邮编</span><br><b style="font-size:24px">${profile.zip_code}</b></div>
+                <div style="text-align:left;">
+                    <input type="text" id="to-zip" placeholder="寄往对方邮编">
                     <input type="datetime-local" id="unlock">
-                    
-                    <label>信件内容</label>
-                    <textarea id="msg" placeholder="写下想对未来表达的话..."></textarea>
-                    
+                    <textarea id="msg" placeholder="想对未来写点什么？" rows="4"></textarea>
                     <button class="btn-main" onclick="sendLetter('${user.id}')">寄往未来</button>
                 </div>
             `;
+            fetchLetters(profile.zip_code); // 加载收件箱
         } else {
-            // 未绑定邮编
-            area.innerHTML = `
-                <h3>设置您的专属邮编</h3>
-                <p style="font-size:13px; color:#888;">邮编是您接收信件的唯一凭证</p>
-                <input type="text" id="my-zip" placeholder="输入 4-8 位数字">
-                <button class="btn-main" onclick="bindZip('${user.id}')">确认绑定</button>
-            `;
+            area.innerHTML = `<input type="text" id="my-zip" placeholder="设置你的邮编"><button class="btn-main" onclick="bindZip('${user.id}')">确认绑定</button>`;
         }
     }
-
     window.onload = checkStatus;
 </script>
 </body>
