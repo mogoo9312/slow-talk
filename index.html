@@ -1,96 +1,13 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>慢邮 Slow Talk</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
-        input { display: block; width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; cursor: pointer; background: #333; color: white; border: none; border-radius: 4px; }
-        .hidden { display: none; }
-    </style>
-</head>
-<body>
 
-<div class="card">
-    <div id="auth-ui">
-        <h2>📬 登录/注册</h2>
-        <input type="email" id="email" placeholder="邮箱">
-        <input type="password" id="password" placeholder="密码">
-        <button onclick="doSignUp()" style="background:#eee; color:#333; margin-bottom:10px;">注册新账号</button>
-        <button onclick="doLogin()">立即登录</button>
-    </div>
+<html lang="zh-CN"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>慢邮 Slow Talk - 寄往未来</title> <script src=""></script> <style> :root { --primary: #333; --accent: #2ecc71; --error: #e74c3c; --bg: #f8f9fa; } body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--primary); } .app-container { max-width: 500px; margin: 40px auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); } h2 { margin-top: 0; font-weight: 800; letter-spacing: -1px; } .input-group { margin-bottom: 15px; text-align: left; } label { font-size: 14px; font-weight: bold; margin-bottom: 5px; display: block; } input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; transition: 0.3s; font-size: 16px; } input:focus { border-color: var(--primary); outline: none; } button { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; } .btn-primary { background: var(--primary); color: white; } .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); } .btn-secondary { background: #f0f0f0; color: #666; } .hidden { display: none !important; } .status-badge { background: #e8f8f0; color: var(--accent); padding: 5px 12px; border-radius: 20px; font-size: 12px; display: inline-block; margin-bottom: 20px; } .zip-card { background: #fffbe6; border: 1px dashed #ffe58f; padding: 20px; border-radius: 12px; margin-top: 20px; } </style> </head> <body>
 
-    <div id="user-ui" class="hidden">
-        <h2 id="welcome-msg">✨ 欢迎</h2>
-        <div id="zip-area" style="background:#fffbe6; padding:15px; border:1px solid #ffe58f; margin-bottom:10px;">
-            </div>
-        <button onclick="doLogout()" style="background:#ff4757;">退出登录</button>
-    </div>
+<div class="app-container"> <div id="auth-form"> <h2>📬 慢邮 Slow Talk</h2> <p style="color:#888; margin-bottom:25px;">给自己或好友寄一封未来的信</p>
+
 </div>
 
-<script>
-    // --- 1. 配置 (全局唯一) ---
-    const URL = 'https://ojwcwpfcewttukmuvuuk.supabase.co';
-    const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI';
-    
+<script> // ======= ⚠️ 必填配置区 ======= const SUPABASE_URL = 'https://ojwcwpfcewttukmuvuuk.supabase.co'; const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI'; // ============================
 
-    // --- 3. 核心功能 ---
-    async function doSignUp() {
-        const e = document.getElementById('email').value;
-        const p = document.getElementById('password').value;
-        const { error } = await supabase.auth.signUp({ email: e, password: p });
-        if (error) alert(error.message); else alert("注册成功，请尝试登录");
-    }
-
-    async function doLogin() {
-        const e = document.getElementById('email').value;
-        const p = document.getElementById('password').value;
-        const { error } = await supabase.auth.signInWithPassword({ email: e, password: p });
-        if (error) alert(error.message); else checkUser();
-    }
-
-    async function doLogout() {
-        await supabase.auth.signOut();
-        location.reload();
-    }
-
-    async function saveZip(uid) {
-        const z = document.getElementById('zip-input').value;
-        const { error } = await supabase.from('profiles').insert([{ id: uid, zip_code: z }]);
-        if (error) alert("该邮编已被占用或保存失败"); else checkUser();
-    }
-
-    async function checkUser() {
-        const { data: { user } } = await supabase.auth.getUser();
-        const authUI = document.getElementById('auth-ui');
-        const userUI = document.getElementById('user-ui');
-        const zipArea = document.getElementById('zip-area');
-
-        if (user) {
-            authUI.classList.add('hidden');
-            userUI.classList.remove('hidden');
-            document.getElementById('welcome-msg').innerText = "账号：" + user.email;
-
-            // 查邮编
-            const { data: profile } = await supabase.from('profiles').select('zip_code').eq('id', user.id).single();
-            if (profile) {
-                zipArea.innerHTML = "我的专属邮编：<strong>" + profile.zip_code + "</strong>";
-            } else {
-                zipArea.innerHTML = `
-                    <p>绑定一个永久邮编：</p>
-                    <input type="text" id="zip-input" placeholder="如: 666888">
-                    <button onclick="saveZip('${user.id}')">确认绑定</button>
-                `;
-            }
-        }
-    }
-
-    // 自动运行
-    checkUser();
 </script>
-</body>
-</html>
 
+</body> </html>
