@@ -2,213 +2,153 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>慢递 - 见字如面</title>
-    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的慢邮 APP</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --theme: #7a6e5d; --bg: #fdfaf5; }
-        body { margin: 0; background: var(--bg); font-family: "PingFang SC", "STKaiti", serif; color: #444; }
-        #app { max-width: 500px; margin: 0 auto; min-height: 100vh; background: #fff; display: flex; flex-direction: column; box-shadow: 0 0 15px rgba(0,0,0,0.05); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; }
         
-        /* 顶部状态栏 */
-        .status-bar { padding: 15px; background: #f8f5f0; border-bottom: 1px solid #eee; font-size: 14px; color: #666; }
-        .id-input { width: 60px; border: none; background: #fff; border-bottom: 1px solid var(--theme); text-align: center; font-weight: bold; color: var(--theme); outline: none; }
+        /* 登录框样式 */
+        #auth-section { 
+            background: #ffffff; 
+            border: 2px solid #333; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 5px 5px 0px #333;
+            margin-bottom: 30px;
+        }
+        input { 
+            display: block; 
+            width: 100%; 
+            padding: 10px; 
+            margin: 10px 0; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            box-sizing: border-box;
+        }
+        button { 
+            padding: 10px 20px; 
+            cursor: pointer; 
+            border: none; 
+            border-radius: 4px; 
+            font-weight: bold; 
+        }
+        .btn-primary { background: #333; color: white; }
+        .btn-secondary { background: #eee; color: #333; margin-right: 10px; }
+        .btn-logout { background: #ff4757; color: white; margin-top: 10px; }
         
-        /* 导航 */
-        .nav { display: flex; border-bottom: 1px solid #eee; }
-        .nav-item { flex: 1; text-align: center; padding: 15px; cursor: pointer; color: #999; }
-        .nav-item.active { color: var(--theme); font-weight: bold; border-bottom: 2px solid var(--theme); }
-
-        .content { flex: 1; padding: 20px; }
-        
-        /* 写信 */
-        .write-box textarea { width: 100%; height: 200px; border: 1px solid #eee; padding: 15px; box-sizing: border-box; font-size: 16px; border-radius: 8px; resize: none; background: #fcfcfc; }
-        .input-row { margin: 15px 0; font-size: 14px; }
-        .target-input { border: 1px solid #ddd; padding: 5px 10px; border-radius: 4px; width: 80px; outline: none; }
-        
-        /* 按钮 */
-        .btn { width: 100%; background: var(--theme); color: white; border: none; padding: 15px; border-radius: 30px; font-size: 16px; cursor: pointer; margin-top: 10px; transition: 0.3s; }
-        .btn:active { opacity: 0.8; transform: scale(0.98); }
-
-        /* 信件列表 */
-        .letter-card { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 20px; margin-bottom: 15px; }
-        .tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #f0f0f0; color: #999; margin-bottom: 10px; display: inline-block; }
-        .tag.arrived { background: #e8f5e9; color: #4caf50; }
-        .letter-body { line-height: 1.6; white-space: pre-wrap; }
-        .empty { text-align: center; color: #ccc; margin-top: 50px; }
+        #user-info { display: none; text-align: center; }
+        #auth-status { color: #2ed573; font-weight: bold; }
     </style>
 </head>
-
 <body>
-<div id="auth-section" style="border: 1px solid #ccc; padding: 20px; margin-bottom: 20px;">
-    <h3>用户登录 / 注册</h3>
-    <input type="email" id="auth-email" placeholder="邮箱地址">
-    <input type="password" id="auth-password" placeholder="密码">
-    <button onclick="handleSignUp()">注册</button>
-    <button onclick="handleLogin()">登录</button>
-    <button onclick="handleLogout()" id="logout-btn" style="display:none;">退出登录</button>
-    <p id="auth-status">状态：未登录</p >
-</div>
-<div id="app">
-    <div class="status-bar">
-        我的邮编：<input type="text" v-model="myId" @change="saveMyId" class="id-input">
-        <span style="font-size: 11px; margin-left: 10px; color: #999;">(点击可修改)</span>
-    </div>
 
-    <div class="nav">
-        <div class="nav-item" :class="{active: tab==='write'}" @click="tab='write'">寄信</div>
-        <div class="nav-item" :class="{active: tab==='box'}" @click="tab='box'">信箱</div>
-    </div>
-
-    <div class="content">
-        <div v-if="tab==='write'" class="write-box">
-            <div class="input-row">
-                寄往邮编：<input type="text" v-model="targetId" placeholder="对方邮编" class="target-input">
-            </div>
-            <textarea v-model="msg" placeholder="慢下来，写一封深思熟虑的信..."></textarea>
-            <div class="input-row">
-                设定寄达：
-                <select v-model="delay">
-                    <option value="60000">1分钟 (测试用)</option>
-                    <option value="3600000">1小时</option>
-                    <option value="86400000">24小时</option>
-                    <option value="259200000">3天</option>
-                </select>
-            </div>
-            <button class="btn" @click="sendLetter">密封寄出</button>
-        </div>
-
-        <div v-if="tab==='box'">
-            <button @click="fetchLetters" style="background: none; border: 1px solid #ccc; color: #999; padding: 5px 10px; border-radius: 4px; margin-bottom: 15px; font-size: 12px; cursor: pointer;">刷新信箱 ↻</button>
-            <div v-if="letters.length === 0" class="empty">云中谁寄锦书来？</div>
-            
-            <div v-for="l in letters" :key="l.id" class="letter-card">
-                <span class="tag" :class="{arrived: isArrived(l.deliver_at)}">
-                    {{ isArrived(l.deliver_at) ? '● 已送达' : '● 邮差赶路中' }}
-                </span>
-                <div v-if="isArrived(l.deliver_at)" class="letter-body">
-                    <small style="color: #999;">来自 {{l.sender_id}} 的信：</small><br>
-                    {{l.content}}
-                </div>
-                <div v-else style="color: #999; font-size: 14px;">
-                    一封信正在路上，预计 {{ formatTime(l.deliver_at) }} 送达。
-                </div>
+<div class="container">
+    <div id="auth-section">
+        <div id="login-form">
+            <h2 style="margin-top:0;">📬 慢邮私人信箱</h2>
+            <p style="font-size: 0.9em; color: #666;">登录后即可拥有专属邮编并寄送信件</p>
+            <input type="email" id="auth-email" placeholder="邮箱地址">
+            <input type="password" id="auth-password" placeholder="设置密码 (至少6位)">
+            <div style="margin-top:15px;">
+                <button class="btn-secondary" onclick="handleSignUp()">新用户注册</button>
+                <button class="btn-primary" onclick="handleLogin()">立即登录</button>
             </div>
         </div>
+        
+        <div id="user-info">
+            <h2 style="margin-top:0;">🚀 已进入信箱</h2>
+            <p id="auth-status"></p>
+            <button class="btn-logout" onclick="handleLogout()">安全退出</button>
+        </div>
     </div>
+
+    <div id="main-content" style="opacity: 0.3; pointer-events: none;">
+        <p style="text-align: center; color: #999;">请先登录以解锁完整功能</p>
+        </div>
 </div>
 
 <script>
-    const { createApp, ref, onMounted } = Vue;
+    // ======= 配置区：请在此处填入你的 Supabase 信息 =======
+    const supabaseUrl = 'https://ojwcwpfcewttukmuvuuk.supabase.co'; 
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI'; 
+    // ===================================================
 
-    // --- 在这里填入你的 Supabase 信息 ---
-    const SUPABASE_URL = 'https://ojwcwpfcewttukmuvuuk.supabase.co'; 
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI';
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // 初始化 Supabase
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
     // 1. 注册功能
-async function handleSignUp() {
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-    const { data, error } = await _supabase.auth.signUp({ email, password });
-    
-    if (error) alert("注册失败: " + error.message);
-    else alert("注册成功！现在请点击登录。");
-}
+    async function handleSignUp() {
+        const email = document.getElementById('auth-email').value;
+        const password = document.getElementById('auth-password').value;
+        if (!email || !password) return alert("请填写完整信息");
 
-// 2. 登录功能
-async function handleLogin() {
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-    const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
-    
-    if (error) alert("登录失败: " + error.message);
-    else {
-        alert("登录成功！");
-        checkUser();
-    }
-}
-
-// 3. 检查当前有没有人登录
-async function checkUser() {
-    const { data: { user } } = await _supabase.auth.getUser();
-    const status = document.getElementById('auth-status');
-    const logoutBtn = document.getElementById('logout-btn');
-    
-    if (user) {
-        status.innerText = "当前登录：" + user.email;
-        logoutBtn.style.display = "inline";
-        // 登录后，你可以记录这个 user.id，用来绑定他以后的邮编
-    } else {
-        status.innerText = "状态：未登录";
-        logoutBtn.style.display = "none";
-    }
-}
-
-// 页面加载时自动查一次状态
-checkUser();
-
-    createApp({
-        setup() {
-            const tab = ref('write');
-            const myId = ref(localStorage.getItem('my_slow_id') || Math.floor(Math.random()*8999+1000).toString());
-            const targetId = ref('');
-            const msg = ref('');
-            const delay = ref('60000');
-            const letters = ref([]);
-
-            const saveMyId = () => localStorage.setItem('my_slow_id', myId.value);
-
-            const sendLetter = async () => {
-                if(!targetId.value || !msg.value.trim()) return alert("请写明收件邮编和内容");
-                
-                const { error } = await supabaseClient.from('letters').insert([{
-                    content: msg.value,
-                    sender_id: myId.value,
-                    receiver_id: targetId.value,
-                    deliver_at: new Date(Date.now() + parseInt(delay.value)).toISOString()
-                }]);
-
-                if(error) {
-                    alert("投递失败，请检查数据库连接");
-                    console.error(error);
-                } else {
-                    alert("信件已交给邮差！");
-                    msg.value = '';
-                    tab.value = 'box';
-                    fetchLetters();
-                }
-            };
-
-            const fetchLetters = async () => {
-                const { data, error } = await supabaseClient.from('letters')
-                    .select('*')
-                    .eq('receiver_id', myId.value)
-                    .order('deliver_at', { ascending: false });
-                
-                if(!error) letters.value = data;
-            };
-
-            const isArrived = (time) => new Date() > new Date(time);
-            const formatTime = (time) => new Date(time).toLocaleString();
-
-            onMounted(() => {
-                saveMyId();
-                fetchLetters();
-                // 每10秒自动刷新状态
-                setInterval(fetchLetters, 10000);
-            });
-
-            return { tab, myId, targetId, msg, delay, letters, saveMyId, sendLetter, fetchLetters, isArrived, formatTime };
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        
+        if (error) {
+            alert("注册出错: " + error.message);
+        } else {
+            alert("注册成功！若已关闭邮箱验证，可直接点击登录。");
         }
-    }).mount('#app');
+    }
+
+    // 2. 登录功能
+    async function handleLogin() {
+        const email = document.getElementById('auth-email').value;
+        const password = document.getElementById('auth-password').value;
+        if (!email || !password) return alert("请输入账号密码");
+
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        
+        if (error) {
+            alert("登录失败: " + error.message);
+        } else {
+            alert("登录成功，欢迎回来！");
+            checkUser(); 
+        }
+    }
+
+    // 3. 退出登录
+    async function handleLogout() {
+        const { error } = await supabase.auth.signOut();
+        if (!error) {
+            alert("已退出登录");
+            location.reload(); 
+        }
+    }
+
+    // 4. 检查用户状态并控制界面显示
+    async function checkUser() {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const loginForm = document.getElementById('login-form');
+        const userInfo = document.getElementById('user-info');
+        const statusText = document.getElementById('auth-status');
+        const mainContent = document.getElementById('main-content');
+
+        if (user) {
+            // 已登录逻辑
+            loginForm.style.display = "none";
+            userInfo.style.display = "block";
+            statusText.innerText = "当前账号：" + user.email;
+            
+            // 解锁下方功能区
+            mainContent.style.opacity = "1";
+            mainContent.style.pointerEvents = "auto";
+            mainContent.innerHTML = "<h3>✅ 你的功能已解锁</h3><p>现在你可以开始寄信了！你的用户ID是: " + user.id + "</p>";
+        } else {
+            // 未登录逻辑
+            loginForm.style.display = "block";
+            userInfo.style.display = "none";
+            mainContent.style.opacity = "0.3";
+            mainContent.style.pointerEvents = "none";
+        }
+    }
+
+    // 页面加载时自动运行
+    document.addEventListener('DOMContentLoaded', checkUser);
 </script>
 
 </body>
 </html>
-
-
-
-
-
-
