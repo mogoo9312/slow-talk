@@ -39,6 +39,15 @@
         .empty { text-align: center; color: #ccc; margin-top: 50px; }
     </style>
 </head>
+<div id="auth-section" style="border: 1px solid #ccc; padding: 20px; margin-bottom: 20px;">
+    <h3>用户登录 / 注册</h3>
+    <input type="email" id="auth-email" placeholder="邮箱地址">
+    <input type="password" id="auth-password" placeholder="密码">
+    <button onclick="handleSignUp()">注册</button>
+    <button onclick="handleLogin()">登录</button>
+    <button onclick="handleLogout()" id="logout-btn" style="display:none;">退出登录</button>
+    <p id="auth-status">状态：未登录</p >
+</div>
 <body>
 
 <div id="app">
@@ -156,6 +165,7 @@
 
 </body>
 </html>
+
 
 
 
