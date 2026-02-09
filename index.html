@@ -6,13 +6,15 @@
     <title>慢邮 Slow Talk</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        :root { --accent: #d4a373; }
         body { background: #fdfcf8; font-family: sans-serif; padding: 20px; color: #333; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 450px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 450px; margin: 0 auto; position: relative; }
         input, textarea { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; background: #222; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
         .hidden { display: none !important; }
-        .letter { border-left: 4px solid #d4a373; padding: 10px; background: #fafafa; margin-bottom: 10px; }
-        #detail-page { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; display: none; padding: 20px; box-sizing: border-box; }
+        .logout-btn { position: absolute; top: 20px; right: 20px; font-size: 12px; color: #999; cursor: pointer; text-decoration: underline; }
+        .letter { border-left: 4px solid var(--accent); padding: 12px; background: #fafafa; margin-bottom: 12px; border-radius: 0 8px 8px 0; cursor: pointer; }
+        #detail-page { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; display: none; padding: 30px; box-sizing: border-box; }
     </style>
 </head>
 <body>
@@ -22,62 +24,62 @@
         <h2>📫 慢邮登录</h2>
         <input type="email" id="email" placeholder="邮箱">
         <input type="password" id="password" placeholder="密码">
-        <button id="login-btn" onclick="doAuth()">进入邮局</button>
-        <p id="auth-msg" style="font-size:12px; color:red;"></p >
+        <button onclick="doAuth()">进入邮局</button>
     </div>
 
     <div id="app-ui" class="hidden">
-        <p id="my-zip" style="font-weight:bold; text-align:center;"></p >
+        <span class="logout-btn" onclick="doLogout()">退出登录</span>
+        <p id="my-zip" style="font-weight:bold; text-align:center; color:var(--accent);"></p >
         <hr>
         <h4>✉️ 寄出一封信</h4>
         <input type="text" id="t-zip" placeholder="收件邮编">
-        <label style="font-size:12px;">解锁时间：</label>
+        <label style="font-size:12px; color:#666;">解锁时间：</label>
         <input type="datetime-local" id="t-time">
-        <textarea id="t-body" placeholder="内容..." rows="3"></textarea>
-        <button onclick="send()">投入邮筒</button>
+        <textarea id="t-body" placeholder="写下内容..." rows="3"></textarea>
+        <button id="send-btn" onclick="send()">投入邮筒</button>
         
-        <h4 style="margin-top:20px">📬 收件箱</h4>
-        <div id="list">加载中...</div>
+        <h4 style="margin-top:25px">📬 收件箱</h4>
+        <div id="list">正在检查信箱...</div>
     </div>
 </div>
 
 <div id="detail-page">
-    <button onclick="location.reload()">关闭并返回</button>
-    <div id="d-meta" style="margin: 20px 0; color: #666;"></div>
-    <div id="d-body" style="font-size: 16px; white-space: pre-wrap;"></div>
+    <button onclick="document.getElementById('detail-page').style.display='none'" style="width:auto; padding:8px 20px;">关闭</button>
+    <div id="d-meta" style="margin: 20px 0; color: #666; font-size:13px;"></div>
+    <div id="d-body" style="font-size: 17px; line-height:1.6; white-space: pre-wrap;"></div>
 </div>
 
 <script>
-    // 配置信息
     const S_URL = 'https://ojwcwpfcewttukmuvuuk.supabase.co';
     const S_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI';
-    
-    // 初始化
     const _db = supabase.createClient(S_URL, S_KEY);
+    
     let userId = '', userZip = '';
 
-    // 登录/注册逻辑
-    async function doAuth() {
-        const btn = document.getElementById('login-btn');
-        btn.innerText = "处理中...";
-        const e = document.getElementById('email').value;
-        const p = document.getElementById('password').value;
+    // 【核心】页面加载时自动检查登录状态
+    window.onload = async () => {
+        const { data: { session } } = await _db.auth.getSession();
+        if (session) initApp(session.user);
+        
+        // 监听登录/退出动作
+        _db.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session) initApp(session.user);
+            if (event === 'SIGNED_OUT') location.reload(); 
+        });
+    };
 
-        try {
-            const { data, error } = await _db.auth.signInWithPassword({ email: e, password: p });
-            if (error) {
-                // 登录失败尝试注册
-                const { error: regErr } = await _db.auth.signUp({ email: e, password: p });
-                if (regErr) alert("错误: " + regErr.message);
-                else alert("新用户注册成功！请去邮箱确认（或直接再次点击进入）");
-            } else {
-                initApp(data.user);
-            }
-        } catch (err) {
-            alert("系统崩溃: " + err.message);
-        } finally {
-            btn.innerText = "进入邮局";
+    async function doAuth() {
+        const e = document.getElementById('email').value, p = document.getElementById('password').value;
+        const { data, error } = await _db.auth.signInWithPassword({ email: e, password: p });
+        if (error) {
+            const { error: regErr } = await _db.auth.signUp({ email: e, password: p });
+            if (regErr) alert("登录/注册失败: " + regErr.message);
+            else alert("注册成功，请再次点击进入");
         }
+    }
+
+    async function doLogout() {
+        if(confirm("确定要退出邮局吗？")) await _db.auth.signOut();
     }
 
     async function initApp(user) {
@@ -86,9 +88,16 @@
         
         if (data) {
             userZip = data.zip_code;
-            document.getElementById('auth-ui').className = 'hidden';
-            document.getElementById('app-ui').className = '';
-            document.getElementById('my-zip').innerText = "我的邮编: " + userZip;
+            document.getElementById('auth-ui').classList.add('hidden');
+            document.getElementById('app-ui').classList.remove('hidden');
+            document.getElementById('my-zip').innerText = "📍 我的邮编: " + userZip;
+            
+            // 初始化时间限制
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('t-time').min = now.toISOString().slice(0, 16);
+            document.getElementById('t-time').value = now.toISOString().slice(0, 16);
+            
             loadLetters();
         } else {
             const z = prompt("首次进入，请设置你的邮编:");
@@ -103,15 +112,25 @@
         const zip = document.getElementById('t-zip').value;
         const body = document.getElementById('t-body').value;
         const time = document.getElementById('t-time').value;
+        if (!zip || !body || !time) return alert("请填写完整信息");
 
-        if (!zip || !body || !time) return alert("请填全邮编、时间内容");
+        const btn = document.getElementById('send-btn');
+        btn.innerText = "投递中...";
+        btn.disabled = true;
 
         const { error } = await _db.from('letters').insert({
             sender_id: userId, sender_zip: userZip, target_zip: zip, content: body, unlock_at: time
         });
 
-        if (error) alert("寄信失败: " + error.message);
-        else { alert("投递成功！"); location.reload(); }
+        btn.innerText = "投入邮筒";
+        btn.disabled = false;
+
+        if (error) alert("失败: " + error.message);
+        else { 
+            alert("投递成功！"); 
+            document.getElementById('t-body').value = ''; // 清空内容
+            loadLetters(); // 局部刷新列表，不再退出登录
+        }
     }
 
     async function loadLetters() {
@@ -120,25 +139,26 @@
         const now = new Date();
 
         if (!data || data.length === 0) {
-            listDiv.innerText = "信箱空空的";
+            listDiv.innerText = "信箱暂时没有信件";
             return;
         }
 
         listDiv.innerHTML = data.map(l => {
             const isReady = now >= new Date(l.unlock_at);
             return `
-                <div class="letter" onclick="view('${encodeURIComponent(l.content)}','${l.unlock_at}',${isReady})">
-                    <div style="font-size:10px; color:#999">来自邮编: ${l.sender_zip}</div>
-                    <div>${isReady ? '📬 点击阅读' : '⏳ 密封中（到达：' + new Date(l.unlock_at).toLocaleString() + '）'}</div>
+                <div class="letter" onclick="view('${encodeURIComponent(l.content)}','${l.unlock_at}',${isReady},'${l.sender_zip}')">
+                    <div style="font-size:11px; color:#999">来自: ${l.sender_zip}</div>
+                    <div style="font-weight:bold; margin-top:5px;">${isReady ? '📬 点击拆阅' : '⏳ 密封运送中'}</div>
+                    <div style="font-size:10px; color:#aaa;">预计到达: ${new Date(l.unlock_at).toLocaleString()}</div>
                 </div>
             `;
         }).join('');
     }
 
-    function view(content, time, ready) {
-        if (!ready) return alert("时间还没到，信件还不能拆开哦！");
+    function view(content, time, ready, fromZip) {
+        if (!ready) return alert("时间还没到，信件还不能拆开！");
         document.getElementById('d-body').innerText = decodeURIComponent(content);
-        document.getElementById('d-meta').innerText = "这封信是在 " + new Date(time).toLocaleString() + " 准时送达的。";
+        document.getElementById('d-meta').innerHTML = `来自邮编：${fromZip}<br>解锁时间：${new Date(time).toLocaleString()}`;
         document.getElementById('detail-page').style.display = 'block';
     }
 </script>
