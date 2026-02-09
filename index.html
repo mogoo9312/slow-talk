@@ -2,165 +2,179 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>慢邮 Slow Talk</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>慢邮 Slow Talk</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --accent: #222; --light: #fdfcf8; }
-        body { font-family: -apple-system, sans-serif; background: var(--light); display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.06); width: 100%; max-width: 440px; border: 1px solid #eee; }
-        h2 { font-weight: 600; margin-bottom: 25px; letter-spacing: -0.5px; }
-        input, textarea { width: 100%; padding: 14px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px; box-sizing: border-box; font-size: 16px; background: #fafafa; }
-        button { width: 100%; padding: 14px; margin-top: 12px; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn-black { background: var(--accent); color: white; }
-        .btn-black:active { transform: scale(0.98); }
-        .hidden { display: none !important; }
-        .zip-box { background: #fffbe6; padding: 20px; border-radius: 16px; margin-bottom: 25px; border: 1px solid #ffe58f; text-align: center; }
-        .mailbox { margin-top: 35px; text-align: left; border-top: 1px solid #eee; padding-top: 25px; }
-        .letter { background: #fff; padding: 16px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #eee; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-        .meta { font-size: 11px; color: #aaa; margin-bottom: 8px; text-transform: uppercase; }
+        :root { --accent: #222; --bg: #fdfcf8; --gray: #888; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; -webkit-user-select: none; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); max-width: 400px; margin: 0 auto; }
+        input, textarea { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; background: #fafafa; }
+        button { width: 100%; padding: 14px; background: var(--accent); color: white; border: none; border-radius: 12px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+        
+        /* 信件列表样式 */
+        .letter-card { background: #fff; padding: 15px; border: 1px solid #eee; border-radius: 12px; margin-bottom: 12px; cursor: pointer; transition: 0.2s; position: relative; }
+        .letter-card:active { transform: scale(0.98); background: #f9f9f9; }
+        .time-tag { font-size: 10px; color: var(--gray); margin-bottom: 5px; display: block; }
+        .preview-text { font-size: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+        /* 全屏落地页/弹窗 */
+        #detail-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; padding: 30px; box-sizing: border-box; display: none; overflow-y: auto; }
+        .close-btn { font-size: 24px; color: #ccc; cursor: pointer; position: absolute; top: 20px; right: 20px; }
+        .reply-section { margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; }
+
+        .hidden { display: none; }
+        .zip-tag { background: #fffbe6; color: #856404; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <div id="ui-auth">
-        <h2>📬 Slow Talk</h2>
+<div class="card" id="main-ui">
+    <div id="auth-section">
+        <h2>📫 慢邮</h2>
         <input type="email" id="email" placeholder="邮箱">
-        <input type="password" id="password" placeholder="密码 (至少6位)">
-        <button class="btn-black" onclick="handleAuth('login')">登录</button>
-        <button style="background:none; color:#999; text-decoration:underline;" onclick="handleAuth('signup')">注册账号</button>
+        <input type="password" id="password" placeholder="密码">
+        <button onclick="handleAuth()">进入邮局</button>
     </div>
 
-    <div id="ui-main" class="hidden">
-        <div id="profile-area"></div>
+    <div id="app-section" class="hidden">
+        <div id="user-info" class="zip-tag"></div>
         
-        <div class="mailbox">
-            <h3 style="margin: 0 0 15px 0; font-size: 18px;">📬 收件箱</h3>
-            <div id="letter-list" style="font-size: 14px; color: #666;">加载中...</div>
+        <div id="send-form">
+            <h4 style="margin:0">✉️ 寄一封信</h4>
+            <input type="text" id="m-to" placeholder="目标邮编 (对方的)">
+            <label style="font-size: 12px; color: #666;">设定未来解锁时间 (必须晚于现在):</label>
+            <input type="datetime-local" id="m-time">
+            <textarea id="m-body" placeholder="此时此刻你想说的话..." rows="3"></textarea>
+            <button onclick="sendLetter()">投入邮筒</button>
         </div>
 
-        <button onclick="handleLogout()" style="margin-top:40px; background:#fff1f0; color:#ff4d4f; font-size:13px;">退出登录</button>
+        <div style="margin-top:30px">
+            <h4 style="margin:0 0 10px 0">📬 已收到的信</h4>
+            <div id="letter-list">正在翻找邮箱...</div>
+        </div>
+    </div>
+</div>
+
+<div id="detail-view">
+    <span class="close-btn" onclick="closeDetail()">×</span>
+    <div id="detail-content"></div>
+    <div class="reply-section">
+        <h4>快速回信</h4>
+        <textarea id="reply-body" placeholder="回一封信给对方..." rows="3"></textarea>
+        <button onclick="sendReply()">回复对方</button>
     </div>
 </div>
 
 <script>
-    // --- 配置区 ---
     const S_URL = 'https://ojwcwpfcewttukmuvuuk.supabase.co';
-    const S_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMI';
+    const S_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qd2N3cGZjZXd0dHVrbXV2dXVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjAzMTEsImV4cCI6MjA4NTkzNjMxMX0.ObGKPq5F2hivJZuUWnW0269PJ1tkMNAwdCA4t5flCMIY';
     const _db = supabase.createClient(S_URL, S_KEY);
 
-    // --- 认证模块 ---
-    async function handleAuth(type) {
-        const e = document.getElementById('email').value;
-        const p = document.getElementById('password').value;
-        if (!e || p.length < 6) return alert("请正确填写信息");
+    let currentUser = null;
+    let currentZip = null;
+    let replyingToZip = null; // 记录回复对象的邮编
 
-        const { error } = type === 'login' 
-            ? await _db.auth.signInWithPassword({ email: e, password: p })
-            : await _db.auth.signUp({ email: e, password: p });
-
-        if (error) alert(error.message);
-        else if (type === 'signup') alert("注册成功，请直接点击登录");
-        else updateUI();
+    // 初始化：设置时间输入框的最小值为当前时间
+    function initTimePicker() {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('m-time').min = now.toISOString().slice(0, 16);
     }
 
-    function handleLogout() { _db.auth.signOut(); location.reload(); }
-
-    // --- 发信模块 ---
-    async function sendLetter(uid) {
-        const content = document.getElementById('m-body').value;
-        const target = document.getElementById('m-to').value;
-        const time = document.getElementById('m-time').value;
-
-        if (!content || !target || !time) return alert("请补全信件信息");
-
-        const { error } = await _db.from('letters').insert([
-            { sender_id: uid, content: content, target_zip: String(target), unlock_at: time }
-        ]);
-
-        if (error) alert("投递失败: " + error.message);
-        else {
-            alert("🚀 信件已存入时光机！");
-            location.reload(); // 强制刷新看结果
+    async function handleAuth() {
+        const e = document.getElementById('email').value;
+        const p = document.getElementById('password').value;
+        const { data, error } = await _db.auth.signInWithPassword({ email: e, password: p });
+        if (error) {
+            // 尝试注册
+            const { error: signUpErr } = await _db.auth.signUp({ email: e, password: p });
+            if (signUpErr) alert(signUpErr.message); else alert("注册成功，请再次点击登录");
+        } else {
+            checkProfile(data.user);
         }
     }
 
-    // --- 收信模块 ---
-    async function loadLetters(zip) {
-        const list = document.getElementById('letter-list');
-        // 关键修复：确保 zip 是字符串匹配
+    async function checkProfile(user) {
+        currentUser = user;
+        const { data } = await _db.from('profiles').select('zip_code').eq('id', user.id).single();
+        if (data) {
+            currentZip = data.zip_code;
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('app-section').classList.remove('hidden');
+            document.getElementById('user-info').innerText = "我的邮编: " + currentZip;
+            initTimePicker();
+            loadLetters();
+        } else {
+            const zip = prompt("请先设置您的个人邮编 (用于接收信件):");
+            if (zip) {
+                await _db.from('profiles').insert([{ id: user.id, zip_code: zip }]);
+                location.reload();
+            }
+        }
+    }
+
+    async function sendLetter(targetZip, bodyId = 'm-body', timeId = 'm-time') {
+        const target = targetZip || document.getElementById('m-to').value;
+        const content = document.getElementById(bodyId).value;
+        const time = document.getElementById(timeId)?.value || new Date().toISOString();
+
+        if (!target || !content) return alert("信息不全");
+
+        const { error } = await _db.from('letters').insert([
+            { sender_id: currentUser.id, sender_zip: currentZip, target_zip: target, content: content, unlock_at: time }
+        ]);
+
+        if (error) alert(error.message);
+        else { alert("信件已寄出！"); location.reload(); }
+    }
+
+    async function loadLetters() {
         const { data, error } = await _db.from('letters')
             .select('*')
-            .eq('target_zip', String(zip))
+            .eq('target_zip', currentZip)
             .order('created_at', { ascending: false });
 
-        if (error) { list.innerHTML = "读取出错"; return; }
+        const listDiv = document.getElementById('letter-list');
         if (!data || data.length === 0) {
-            list.innerHTML = `<div style="color:#bbb; text-align:center; padding:20px;">暂无已解锁的信件<br><small>(当前搜索邮编: ${zip})</small></div>`;
+            listDiv.innerHTML = "<p style='color:#999'>信箱空空的...</p>";
             return;
         }
 
-        list.innerHTML = data.map(item => `
-            <div class="letter">
-                <div class="meta">解锁于: ${new Date(item.unlock_at).toLocaleString()}</div>
-                <div style="white-space: pre-wrap; line-height:1.6;">${item.content}</div>
+        listDiv.innerHTML = data.map(l => `
+            <div class="letter-card" onclick="openDetail('${l.content}', '${l.created_at}', '${l.unlock_at}', '${l.sender_zip}')">
+                <span class="time-tag">寄出: ${new Date(l.created_at).toLocaleString()}</span>
+                <span class="time-tag" style="color:#28a745">到达: ${new Date(l.unlock_at).toLocaleString()}</span>
+                <div class="preview-text">${l.content}</div>
             </div>
         `).join('');
     }
 
-    // --- 邮编绑定 ---
-    async function doBind(uid) {
-        const z = document.getElementById('z-input').value;
-        if (!z) return alert("邮编不能为空");
-        const { error } = await _db.from('profiles').insert([{ id: uid, zip_code: String(z) }]);
-        if (error) alert("绑定失败，邮编可能已被占用");
-        else updateUI();
+    function openDetail(content, created, unlock, fromZip) {
+        replyingToZip = fromZip; // 记住发件人，方便回复
+        const detail = document.getElementById('detail-content');
+        detail.innerHTML = `
+            <div style="font-size:12px; color:#999; margin-bottom:20px;">
+                来自邮编: ${fromZip}<br>
+                寄出时间: ${new Date(created).toLocaleString()}<br>
+                到达时间: ${new Date(unlock).toLocaleString()}
+            </div>
+            <div style="line-height:1.8; font-size:16px; white-space:pre-wrap;">${content}</div>
+        `;
+        document.getElementById('detail-view').style.display = 'block';
     }
 
-    // --- 界面控制 ---
-    async function updateUI() {
-        const { data: { user } } = await _db.auth.getUser();
-        if (!user) return;
+    function closeDetail() { document.getElementById('detail-view').style.display = 'none'; }
 
-        document.getElementById('ui-auth').classList.add('hidden');
-        document.getElementById('ui-main').classList.remove('hidden');
-
-        const { data: prof } = await _db.from('profiles').select('zip_code').eq('id', user.id).single();
-        const area = document.getElementById('profile-area');
-
-        if (prof) {
-            area.innerHTML = `
-                <div class="zip-box">
-                    <div style="font-size:12px; color:#856404; margin-bottom:5px;">我的邮编</div>
-                    <div style="font-size:32px; font-weight:bold; color:#856404;">${prof.zip_code}</div>
-                </div>
-                <div style="text-align:left;">
-                    <label style="font-size:13px; color:#666;">寄往对方邮编</label>
-                    <input type="text" id="m-to" placeholder="目标邮编">
-                    <label style="font-size:13px; color:#666;">解锁时间</label>
-                    <input type="datetime-local" id="m-time">
-                    <textarea id="m-body" placeholder="写下你的话..." rows="4"></textarea>
-                    <button class="btn-black" onclick="sendLetter('${user.id}')">寄往未来</button>
-                </div>
-            `;
-            loadLetters(prof.zip_code);
-        } else {
-            area.innerHTML = `
-                <h3 style="margin-top:0">最后一步</h3>
-                <p style="color:#666; font-size:14px;">请设置您的专属邮编，用于收发信件</p>
-                <input type="text" id="z-input" placeholder="输入您的邮编 (如 123456)">
-                <button class="btn-black" onclick="doBind('${user.id}')">完成绑定</button>
-            `;
-        }
+    async function sendReply() {
+        const content = document.getElementById('reply-body').value;
+        if (!content) return alert("请输入内容");
+        // 回复信件默认立即解锁，也可以改成让用户选时间
+        await sendLetter(replyingToZip, 'reply-body');
     }
-
-    window.onload = updateUI;
 </script>
-
 </body>
 </html>
-
