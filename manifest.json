@@ -1,0 +1,15 @@
+{
+  "name": "慢邮 Slow Talk",
+  "short_name": "慢邮",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#fdfcf8",
+  "theme_color": "#222222",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/666/666162.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
